@@ -10,7 +10,7 @@
     <div class="max-w-5xl mx-auto p-6">
         <h1 class="text-4xl font-bold mb-8">Dashboard Gains en Temps Réel</h1>
 
-        <!-- Compteur d'argent -->
+        <!-- Compteur -->
         <div class="bg-zinc-900 rounded-2xl p-8 mb-8 border border-zinc-800">
             <div class="text-zinc-400 text-sm">Revenu total généré</div>
             <div id="total-revenue" class="text-7xl font-bold tracking-tighter mt-2">0.00 €</div>
@@ -24,7 +24,7 @@
                 <div id="transactions-list" class="space-y-3 text-sm"></div>
             </div>
 
-            <!-- Logs Support (optionnel pour l'instant) -->
+            <!-- Logs Support -->
             <div class="bg-zinc-900 rounded-2xl p-6 border border-zinc-800">
                 <h2 class="text-xl font-semibold mb-4">Activité Support (Live)</h2>
                 <div id="logs-list" class="space-y-2 text-sm text-zinc-400">
@@ -35,7 +35,7 @@
     </div>
 
     <script>
-        const BACKEND_URL = "https://crm-backend-ysue.onrender.com"; // ← Change si ton URL est différente
+        const BACKEND_URL = "https://crm-backend-ysue.onrender.com";
 
         let totalRevenue = 0;
         let transactions = [];
@@ -45,7 +45,6 @@
 
         ws.onmessage = (event) => {
             const message = JSON.parse(event.data);
-            
             if (message.type === "new_transaction") {
                 addTransaction(message.data);
             }
@@ -59,7 +58,6 @@
                 totalRevenue += parseFloat(tx.amount);
                 document.getElementById("total-revenue").innerText = totalRevenue.toFixed(2) + " €";
             }
-
             renderTransactions();
         }
 
@@ -96,26 +94,11 @@
                     renderTransactions();
                 }
             } catch (e) {
-                console.log("Erreur chargement initial");
+                console.log("Erreur chargement");
             }
         }
 
         loadInitialData();
-
-        // Test rapide : envoie un paiement test toutes les 8 secondes (tu peux supprimer ça plus tard)
-        setInterval(() => {
-            fetch(`${BACKEND_URL}/webhook/payment`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Webhook-Secret": "change-me-in-production-123456"
-                },
-                body: JSON.stringify({
-                    amount: Math.floor(Math.random() * 150) + 20,
-                    status: "completed"
-                })
-            });
-        }, 8000);
     </script>
 </body>
 </html>
