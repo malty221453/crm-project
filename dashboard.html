@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Gains - Temps Réel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-zinc-950 text-white">
+    <div class="max-w-5xl mx-auto p-6">
+        <h1 class="text-4xl font-bold mb-8">Dashboard Gains en Temps Réel</h1>
+
+        <!-- Compteur d'argent -->
+        <div class="bg-zinc-900 rounded-2xl p-8 mb-8 border border-zinc-800">
+            <div class="text-zinc-400 text-sm">Revenu total généré</div>
+            <div id="total-revenue" class="text-7xl font-bold tracking-tighter mt-2">0.00 €</div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <!-- Transactions -->
+            <div class="bg-zinc-900 rounded-2xl p-6 border border-zinc-800">
+                <h2 class="text-xl font-semibold mb-4">Dernières Transactions</h2>
+                <div id="transactions-list" class="space-y-3 text-sm"></div>
+            </div>
+
+            <!-- Logs Support (optionnel pour l'instant) -->
+            <div class="bg-zinc-900 rounded-2xl p-6 border border-zinc-800">
+                <h2 class="text-xl font-semibold mb-4">Activité Support (Live)</h2>
+                <div id="logs-list" class="space-y-2 text-sm text-zinc-400">
+                    En attente de logs...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = "https://crm-backend-ysue.onrender.com"; // ← Change si ton URL est différente
+
+        let totalRevenue = 0;
+        let transactions = [];
+
+        // Connexion WebSocket
+        const ws = new WebSocket(`wss://${BACKEND_URL.replace('https://', '')}/ws/dashboard`);
+
+        ws.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            
+            if (message.type === "new_transaction") {
+                addTransaction(message.data);
+            }
+        };
+
+        function addTransaction(tx) {
+            transactions.unshift(tx);
+            if (transactions.length > 15) transactions.pop();
+
+            if (tx.status === "completed") {
+                totalRevenue += parseFloat(tx.amount);
+                document.getElementById("total-revenue").innerText = totalRevenue.toFixed(2) + " €";
+            }
+
+            renderTransactions();
+        }
+
+        function renderTransactions() {
+            const container = document.getElementById("transactions-list");
+            container.innerHTML = "";
+
+            transactions.forEach(tx => {
+                const div = document.createElement("div");
+                div.className = "flex justify-between bg-zinc-950 p-3 rounded-xl border border-zinc-800";
+                div.innerHTML = `
+                    <div>
+                        <span class="font-medium">${parseFloat(tx.amount).toFixed(2)} ${tx.currency}</span>
+                    </div>
+                    <div class="text-emerald-400 text-xs px-3 py-1 rounded-full bg-emerald-500/10">
+                        ${tx.status}
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // Charger les données au démarrage
+        async function loadInitialData() {
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/metrics`);
+                const data = await res.json();
+
+                totalRevenue = data.total_revenue || 0;
+                document.getElementById("total-revenue").innerText = totalRevenue.toFixed(2) + " €";
+
+                if (data.recent_transactions) {
+                    transactions = data.recent_transactions;
+                    renderTransactions();
+                }
+            } catch (e) {
+                console.log("Erreur chargement initial");
+            }
+        }
+
+        loadInitialData();
+
+        // Test rapide : envoie un paiement test toutes les 8 secondes (tu peux supprimer ça plus tard)
+        setInterval(() => {
+            fetch(`${BACKEND_URL}/webhook/payment`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Webhook-Secret": "change-me-in-production-123456"
+                },
+                body: JSON.stringify({
+                    amount: Math.floor(Math.random() * 150) + 20,
+                    status: "completed"
+                })
+            });
+        }, 8000);
+    </script>
+</body>
+</html>
